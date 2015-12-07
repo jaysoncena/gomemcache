@@ -450,6 +450,75 @@ func (c *Client) GetMulti(keys []string) (map[string]*Item, error) {
 	return m, err
 }
 
+// GetPrefix returns all values for keys matching a certain prefix.
+//
+// The prefix must be at most 249 bytes in length.
+// Note: this function only queries a single server, even if there are several in
+// the server selector.
+//
+// This is a non-standard extension of the memcached protocol.
+func (c *Client) GetPrefix(prefix string, limit int) (map[string]*Item, error) {
+	m := make(map[string]*Item)
+
+	if err := c.withKeyRw(prefix, func(rw *bufio.ReadWriter) error {
+		if _, err := fmt.Fprintf(rw, "get_prefix %s %d\r\n", prefix, limit); err != nil {
+			return err
+		}
+		if err := rw.Flush(); err != nil {
+			return err
+		}
+		if err := parseGetResponse(rw.Reader, func(it *Item) {
+			m[it.Key] = it
+		}); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+// GetPrefixKeys returns all value lengths for keys matching a certain prefix.
+//
+// The prefix must be at most 249 bytes in length.
+// Note: this function only queries a single server, even if there are several in
+// the server selector.
+//
+// This is a non-standard extension of the memcached protocol.
+func (c *Client) GetPrefixKeys(prefix string, limit int) (map[string]int, error) {
+	m := make(map[string]int)
+
+	if err := c.withKeyRw(prefix, func(rw *bufio.ReadWriter) error {
+		if _, err := fmt.Fprintf(rw, "get_prefix %s %d\r\n", prefix, limit); err != nil {
+			return err
+		}
+		if err := rw.Flush(); err != nil {
+			return err
+		}
+
+		var inner error
+		if err := parseGetResponse(rw.Reader, func(it *Item) {
+			length, err := strconv.ParseInt(string(it.Value), 10, 32)
+			if err != nil {
+				inner = err
+				return
+			}
+
+			m[it.Key] = int(length)
+		}); err != nil {
+			return err
+		}
+
+		return inner
+	}); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
 // parseGetResponse reads a GET response from r and calls cb for each
 // read and allocated Item
 func parseGetResponse(r *bufio.Reader, cb func(*Item)) error {
