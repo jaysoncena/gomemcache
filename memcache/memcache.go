@@ -491,7 +491,7 @@ func (c *Client) GetPrefixKeys(prefix string, limit int) (map[string]int, error)
 	m := make(map[string]int)
 
 	if err := c.withKeyRw(prefix, func(rw *bufio.ReadWriter) error {
-		if _, err := fmt.Fprintf(rw, "get_prefix %s %d\r\n", prefix, limit); err != nil {
+		if _, err := fmt.Fprintf(rw, "get_prefix_keys %s %d\r\n", prefix, limit); err != nil {
 			return err
 		}
 		if err := rw.Flush(); err != nil {
