@@ -67,9 +67,13 @@ var (
 // DefaultTimeout is the default socket read/write timeout.
 const DefaultTimeout = 100 * time.Millisecond
 
+// DefaultMaxIdleConnsPerAddr is the default maximum amount of idle connections
+// held open per server at any time.
+const DefaultMaxIdleConnsPerAddr = 2
+
 const (
-	buffered            = 8 // arbitrary buffered channel size, for readability
-	maxIdleConnsPerAddr = 2 // TODO(bradfitz): make this configurable?
+	buffered = 8 // arbitrary buffered channel size, for readability
+
 )
 
 // resumableError returns true if err is only a protocol-level cache error.
@@ -123,7 +127,7 @@ func New(server ...string) *Client {
 
 // NewFromSelector returns a new Client using the provided ServerSelector.
 func NewFromSelector(ss ServerSelector) *Client {
-	return &Client{selector: ss}
+	return &Client{selector: ss, maxIdleConnsPerAddr: DefaultMaxIdleConnsPerAddr}
 }
 
 // Client is a memcache client.
@@ -132,6 +136,8 @@ type Client struct {
 	// Timeout specifies the socket read/write timeout.
 	// If zero, DefaultTimeout is used.
 	Timeout time.Duration
+
+	maxIdleConnsPerAddr int
 
 	selector ServerSelector
 
@@ -199,7 +205,7 @@ func (c *Client) putFreeConn(addr net.Addr, cn *conn) {
 		c.freeconn = make(map[string][]*conn)
 	}
 	freelist := c.freeconn[addr.String()]
-	if len(freelist) >= maxIdleConnsPerAddr {
+	if len(freelist) >= c.maxIdleConnsPerAddr {
 		cn.nc.Close()
 		return
 	}
@@ -291,6 +297,18 @@ func (c *Client) onItem(item *Item, fn func(*Client, *bufio.ReadWriter, *Item) e
 		return err
 	}
 	return nil
+}
+
+// SetMaxIdleConnsPerAddr changes the default number of idle connections open at any time.
+// Any number smaller than 2 is ignored.
+//
+// This function should not be called during concurrent use of the client.
+func (c *Client) SetMaxIdleConnsPerAddr(n int) {
+	if n < DefaultMaxIdleConnsPerAddr {
+		return
+	}
+
+	c.maxIdleConnsPerAddr = n
 }
 
 func (c *Client) FlushAll() error {
