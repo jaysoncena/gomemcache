@@ -46,7 +46,7 @@ func TestLocalhost(t *testing.T) {
 	if !setup(t) {
 		return
 	}
-	testWithClient(t, New(testServer))
+	testWithClient(t, New(nil, testServer))
 }
 
 // Run the memcached binary as a child process and connect to its unix socket.
@@ -68,7 +68,7 @@ func TestUnixSocket(t *testing.T) {
 		time.Sleep(time.Duration(25*i) * time.Millisecond)
 	}
 
-	testWithClient(t, New(sock))
+	testWithClient(t, New(nil, sock))
 }
 
 func mustSetF(t *testing.T, c *Client) func(*Item) {
@@ -275,7 +275,7 @@ func BenchmarkOnItem(b *testing.B) {
 	}()
 
 	addr := fakeServer.Addr()
-	c := New(addr.String())
+	c := New(nil, addr.String())
 	if _, err := c.getConn(addr); err != nil {
 		b.Fatal("failed to initialize connection to fake server")
 	}

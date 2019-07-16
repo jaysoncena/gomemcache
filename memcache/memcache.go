@@ -20,12 +20,12 @@ package memcache
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
-
 	"strconv"
 	"strings"
 	"sync"
@@ -119,15 +119,15 @@ var (
 // New returns a memcache client using the provided server(s)
 // with equal weight. If a server is listed multiple times,
 // it gets a proportional amount of weight.
-func New(server ...string) *Client {
+func New(tlsConfig *tls.Config, server ...string) *Client {
 	ss := new(ServerList)
 	ss.SetServers(server...)
-	return NewFromSelector(ss)
+	return NewFromSelector(ss, tlsConfig)
 }
 
 // NewFromSelector returns a new Client using the provided ServerSelector.
-func NewFromSelector(ss ServerSelector) *Client {
-	return &Client{selector: ss, maxIdleConnsPerAddr: DefaultMaxIdleConnsPerAddr}
+func NewFromSelector(ss ServerSelector, tlsConfig *tls.Config) *Client {
+	return &Client{selector: ss, maxIdleConnsPerAddr: DefaultMaxIdleConnsPerAddr, tlsConfig: tlsConfig}
 }
 
 // Client is a memcache client.
@@ -143,6 +143,8 @@ type Client struct {
 
 	lk       sync.Mutex
 	freeconn map[string][]*conn
+
+	tlsConfig *tls.Config
 }
 
 // Item is an item to be got or stored in a memcached server.
@@ -248,7 +250,19 @@ func (c *Client) dial(addr net.Addr) (net.Conn, error) {
 		err error
 	}
 
-	nc, err := net.DialTimeout(addr.Network(), addr.String(), c.netTimeout())
+	var (
+		nc  net.Conn
+		err error
+	)
+
+	if c.tlsConfig != nil {
+		nc, err = tls.DialWithDialer(&net.Dialer{
+			Timeout: c.netTimeout(),
+		}, addr.Network(), addr.String(), c.tlsConfig)
+	} else {
+		nc, err = net.DialTimeout(addr.Network(), addr.String(), c.netTimeout())
+	}
+
 	if err == nil {
 		return nc, nil
 	}

@@ -1,19 +1,22 @@
 ## About
 
-This is a fork of bradfitz's [gomemcache](https://github.com/bradfitz/gomemcache) package.
+This is a fork of lmb's [gomemcache](https://github.com/lmb/gomemcache) package which is originally from [bradftiz's](http://github.com/bradfitz/gomemcache)
 
-It adds GetPrefix and GetPrefixKeys commands.
+This is a fork has
+
+- It adds GetPrefix and GetPrefixKeys commands from [lmb](https://github.com/lmb/gomemcach)
+- Support for TLS
 
 ## Installing
 
 ### Using *go get*
 
-    $ go get github.com/lmb/gomemcache/memcache
+    $ go get github.com/jaysoncena/gomemcache/memcache
 
 ## Full docs, see:
 
-See https://godoc.org/github.com/lmb/gomemcache/memcache
+See https://godoc.org/github.com/jaysoncena/gomemcache/memcache
 
 Or run:
 
-    $ godoc github.com/lmb/gomemcache/memcache
+    $ godoc github.com/jaysoncena/gomemcache/memcache
